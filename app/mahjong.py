@@ -26,7 +26,6 @@ class App:
         # リセット
         self.reset_card()
 
-        pyxel.playm(0, loop=True)
         pyxel.run(self.update, self.draw)
 
     # リセット
@@ -96,58 +95,80 @@ class App:
             return
 
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            px = int(pyxel.mouse_x / 16)
-            py = int(pyxel.mouse_y / 20)
-            if py == 0 and (px == 14 or px == 15):
+            mx = pyxel.mouse_x
+            my = pyxel.mouse_y
+
+            # リセット
+            if (224 <= mx and mx <= 242) and (5 <= my and my <= 10):
                 self.reset_card()
                 return
 
-            self.try_select(px, py)
+            self.try_select(mx, my)
+
+    # タイル選択インデックス
+    def get_tile_selected_index(self, px, py):
+        return (py * 16)+px
 
     # 上の段のタイルを取得
-    def get_select_tile(self, pi):
+    def get_select_tile(self, mx, my):
         for i in range(4):
             plane_no = 3-i
+            x = mx + (plane_no * 2)
+            y = my + (plane_no * 2)
+            px = int(x / 16)
+            py = int(y / 20)
+            pi = self.get_tile_selected_index(px, py)
             tile = self.tiles[plane_no]
             if tile[pi] != 0:
-                return tile, plane_no
-        return None, 0
+                return tile, plane_no, px, py, pi
+        return None, 0, 0, 0, 0
 
     # 選択
-    def try_select(self, px, py):
+    def try_select(self, mx, my):
         # 一番上のタイルから選択する
-        pi = (py * 16)+px
+        tile, plane_no, px, py, pi = self.get_select_tile(mx, my)
 
-        tile, plane_no = self.get_select_tile(pi)
+        # 選択できなかった
         if tile is None:
+            pyxel.play(1,3)
             return
 
         # 選択できない
         if pi-1 < 0 or len(tile) <= pi+1:
+            pyxel.play(1,3)
             return
         
-        # 隣が無い場合は選択できる
-        if tile[pi-1] == 0 or tile[pi+1] == 0:
-            tile_ch = tile[pi]
-            # 1つ目の選択
-            if self.sel_count == 0:
-                mark = self.sel_mark[0]
-                mark.set_value(True, px, py, tile_ch, plane_no)
-                self.sel_count+=1
+        # 両隣がある場合は選択できない
+        if tile[pi-1] != 0 and tile[pi+1] != 0:
+            pyxel.play(1,3)
+            return
+
+        tile_ch = tile[pi]
+        # 1つ目の選択
+        if self.sel_count == 0:
+            mark = self.sel_mark[0]
+            mark.set_value(True, px, py, tile_ch, plane_no)
+            self.sel_count+=1
+            pyxel.play(1,2)
+            return
+
+        # 2つ目の選択
+        if self.sel_count == 1:
+            mark = self.sel_mark[0]
+            if mark.x == px and mark.y == py:
+                self.sel_count-=1
+                mark.visible = False
                 return
 
-            # 2つ目の選択
-            if self.sel_count == 1:
-                mark = self.sel_mark[0]
-                if mark.x == px and mark.y == py:
-                    self.sel_count-=1
-                    mark.visible = False
-                    return
-                
-                if mark.ch == tile_ch:
-                    self.sel_mark[1].set_value(True, px, py, tile_ch, plane_no)
-                    self.sel_count+=1
-                    self.erase_count = 30
+            # 選択が一致しない
+            if mark.ch != tile_ch:
+                pyxel.play(1,3)
+                return
+
+            self.sel_mark[1].set_value(True, px, py, tile_ch, plane_no)
+            self.sel_count+=1
+            self.erase_count = 30
+            pyxel.play(1,4)
 
     # 描画
     def draw(self):
@@ -169,6 +190,10 @@ class App:
                     x -= (plane_no)*2
                     y -= (plane_no)*2
                     pyxel.blt(x, y, 0, u, v, 16, 20)
+
+                    pyxel.line(x, y, x+13, y, 13)
+                    pyxel.line(x-1, y, x-1, y + 20, 13)
+
 
                     # 側面の部分
                     sx = 0
