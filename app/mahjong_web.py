@@ -12,9 +12,14 @@ from SelectionData import SelectionData
 class App:
     # 初期化
     def __init__(self):
-        pyxel.init(192, 216, title="Pyxel Mahjong solitaire")
+        self.screen_width = 192
+        self.screen_height = 216
+
+        pyxel.init(self.screen_width, self.screen_height, title="Pyxel Mahjong solitaire")
         pyxel.load("myres.pyxres")
         pyxel.mouse(True)
+
+        self.error = False
 
         # キャラクタ座標
         chrpos_table = []
@@ -71,42 +76,52 @@ class App:
 
     # 更新
     def update(self):
-        if pyxel.btnp(pyxel.KEY_Q):
-            pyxel.quit()
-
-        if 0 < self.left_count:
-            self.time_count+=1
-
-        # 消去イベント
-        if 0 < self.erase_count:
-            self.erase_count-=1
-            if self.erase_count == 0:
-                for si in range(2):
-                    mark = self.sel_mark[si]
-                    tile = self.tiles[mark.plane_no]
-                    px = mark.x
-                    py = mark.y
-                    pi = (py * 16)+px
-                    tile[pi] = 0
-                    self.sel_mark[si].visible = False
-
-                self.left_count-=2
-                self.sel_count=0
+        if self.error:
             return
 
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            mx = pyxel.mouse_x
-            my = pyxel.mouse_y
+        try:
+            if pyxel.btnp(pyxel.KEY_Q):
+                pyxel.quit()
 
-            # リセット
-            if (168 <= mx and mx <= 186) and (5 <= my and my <= 10):
-                self.reset_card()
+            if 0 < self.left_count:
+                self.time_count+=1
+
+            # 消去イベント
+            if 0 < self.erase_count:
+                self.erase_count-=1
+                if self.erase_count == 0:
+                    for si in range(2):
+                        mark = self.sel_mark[si]
+                        tile = self.tiles[mark.plane_no]
+                        px = mark.x
+                        py = mark.y
+                        pi = (py * 16)+px
+                        tile[pi] = 0
+                        self.sel_mark[si].visible = False
+
+                    self.left_count-=2
+                    self.sel_count=0
                 return
 
-            self.try_select(mx, my)
+            if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+                mx = pyxel.mouse_x
+                my = pyxel.mouse_y
 
-        if pyxel.btnp(pyxel.KEY_SPACE):
-            self.try_select(28, 38)
+                # 範囲外の場合は何もしない
+                if mx < 0 or self.screen_width < mx or my < 0 or self.screen_height < my:
+                    return
+
+                # リセット
+                if (168 <= mx and mx <= 186) and (5 <= my and my <= 10):
+                    self.reset_card()
+                    return
+
+                self.try_select(mx, my)
+
+            if pyxel.btnp(pyxel.KEY_SPACE):
+                self.try_select(28, 38)
+        except:
+            pass
 
     # タイル選択インデックス
     def get_tile_selected_index(self, px, py):
@@ -126,6 +141,22 @@ class App:
             py = int(y / 20)+1
             pi = self.get_tile_selected_index(px, py)
             tile = self.tiles[plane_no]
+
+            # tileがpiの範囲外の場合はエラーを出す
+            if not (0 <= pi < len(tile)):
+                pyxel.cls(3)
+                lines = [
+                    "ERROR: tile index out of range.", 
+                    "ERROR: len=%d, pi=%d" % (len(tile), pi),
+                    "x=%d, y=%d, plane_no=%d" % (x, y, plane_no),
+                    "mx=%d, my=%d" % (mx, my),
+                ]
+                s = "\n".join(lines)
+                pyxel.text(0,0,s,7)
+                self.error = True
+
+                return None, 0, 0, 0, 0
+
             if tile[pi] != 0 and self.is_top_empty(plane_no, pi):
                 return tile, plane_no, px, py, pi
         return None, 0, 0, 0, 0
@@ -186,6 +217,9 @@ class App:
 
     # 描画
     def draw(self):
+        if self.error:
+            return
+
         pyxel.cls(3)
 
         tiles = self.tiles
@@ -230,10 +264,9 @@ class App:
         pyxel.text(5, 5, "LEFT: %d" % self.left_count, 7)
         pyxel.text(75, 5, "TIME: %d" % int(self.time_count/50), 7)
         pyxel.text(168, 5, "RESET", 7)
+        pyxel.text(150, 200, "VER 1.1", 7)
 
         if self.left_count == 0:
             pyxel.text(82, 100, "CLEAR!!", 7)
-
-
 
 App()

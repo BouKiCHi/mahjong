@@ -220,6 +220,4 @@ class App:
         if self.left_count == 0:
             pyxel.text(110, 100, "CLEAR!!", 7)
 
-
-
 App()
